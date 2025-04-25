@@ -75,5 +75,11 @@ public class ReservationController {
         List<ReservationEntity> reservations = reservationService.getAllReservations();
         return ResponseEntity.ok(reservations);
     }
+
+    @GetMapping("/allByDuration")
+    public ResponseEntity<List<Map<String, Object>>> getAllReservationsByDuration() {
+        List<Map<String, Object>> reservations = reservationService.getAllReservationsByDuration();
+        return ResponseEntity.ok(reservations);
+    }
 }
 

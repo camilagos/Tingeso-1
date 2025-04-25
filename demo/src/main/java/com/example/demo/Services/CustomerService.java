@@ -21,10 +21,14 @@ public class CustomerService {
         if (existingUserRut != null) {
             return null; // User already exists
         }
+        System.out.println("Valor admin recibido: " + customer.isAdmin());
 
         CustomerEntity user = new CustomerEntity(customer.getName(), customer.getEmail(), customer.getRut(),
                 customer.getPassword(), customer.getPhone(), customer.getBirthDate(), customer.getMonthVisits(),
                 customer.isAdmin());
+
+        System.out.println("Valor admin guardado: " + user.isAdmin());
+
         return customerRepository.save(user);
     }
 
@@ -49,17 +53,14 @@ public class CustomerService {
         return customerRepository.findByRut(rut);
     }
 
-    public int login(String email, String password) {
-        CustomerEntity customer = customerRepository.findByEmail(email);
-        if (customer != null) {
-            if (password.equals(customer.getPassword())) {
-                if (customer.isAdmin()) {
-                    return 1;
-                } else {
-                    return 0;
-                }
-            }
+    public CustomerEntity login(CustomerEntity user) {
+        CustomerEntity customer = customerRepository.findByEmailAndPassword(user.getEmail(), user.getPassword()
+        );
+
+        if (customer == null) {
+            throw new RuntimeException("Email o contraseña incorrectos");
         }
-        return -1;
+
+        return customer;
     }
 }

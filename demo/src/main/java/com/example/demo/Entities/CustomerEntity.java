@@ -25,12 +25,12 @@ public class CustomerEntity {
     private String phone;
     private LocalDate birthDate;
     private int monthVisits;
-    private boolean isAdmin;
+    private boolean admin;
 
     public CustomerEntity() {
     }
 
-    public CustomerEntity(String name, String email, String rut, String password, String phone, LocalDate birthDate, int monthVisits, boolean isAdmin) {
+    public CustomerEntity(String name, String email, String rut, String password, String phone, LocalDate birthDate, int monthVisits, boolean admin) {
         this.name = name;
         this.email = email;
         this.rut = rut;
@@ -38,7 +38,7 @@ public class CustomerEntity {
         this.phone = phone;
         this.birthDate = birthDate;
         this.monthVisits = monthVisits;
-        this.isAdmin = isAdmin;
+        this.admin = admin;
     }
 
     public Long getId() {
@@ -106,10 +106,8 @@ public class CustomerEntity {
     }
 
     public boolean isAdmin() {
-        return isAdmin;
+        return admin;
     }
 
-    public void setAdmin(boolean admin) {
-        isAdmin = admin;
-    }
+    public void setAdmin(boolean newAdmin) { admin = newAdmin;}
 }

@@ -1,5 +1,6 @@
 package com.example.demo.Services;
 
+import com.example.demo.Entities.KartEntity;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.example.demo.Entities.CustomerEntity;
 import com.example.demo.Entities.ReservationEntity;
@@ -19,10 +20,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.awt.*;
 import java.io.ByteArrayOutputStream;
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.Month;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.*;
@@ -37,6 +35,10 @@ public class ReservationService {
 
     @Autowired
     CustomerRepository customerRepository;
+
+    @Autowired
+    KartService kartService;
+
 
     @Autowired
     JavaMailSender mailSender;
@@ -56,10 +58,25 @@ public class ReservationService {
         return price;
     }
 
-    public boolean isWeekend(LocalDateTime date) {
+    public boolean isHoliday(LocalDate date) {
         DayOfWeek day = date.getDayOfWeek();
-        return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
+
+        // Feriados fijos (día y mes sin considerar el año)
+        List<MonthDay> feriadosFijos = List.of(
+                MonthDay.of(1, 1),   // Año Nuevo
+                MonthDay.of(5, 1),   // Día del Trabajador
+                MonthDay.of(9, 18),  // Independencia Chile
+                MonthDay.of(9, 19),  // Glorias del Ejército
+                MonthDay.of(12, 25)  // Navidad
+        );
+
+        MonthDay diaActual = MonthDay.from(date);
+
+        return day == DayOfWeek.SATURDAY ||
+                day == DayOfWeek.SUNDAY ||
+                feriadosFijos.contains(diaActual);
     }
+
 
     public int calculateDiscountNumberPeople(int numberPeople) {
         int discount = -1;
@@ -156,10 +173,36 @@ public class ReservationService {
         }
     }
 
+    private boolean isWithinWorkingHours(LocalDate date, LocalTime startTime, LocalTime endTime) {
+        DayOfWeek day = date.getDayOfWeek();
+
+        LocalTime apertura;
+        if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY || isHoliday(date)) {
+            apertura = LocalTime.of(10, 0); // Fin de semana o feriado
+        } else {
+            apertura = LocalTime.of(14, 0); // Lunes a Viernes
+        }
+        LocalTime cierre = LocalTime.of(22, 0);
+
+        return !startTime.isBefore(apertura) && !endTime.isAfter(cierre);
+    }
+
     public ReservationEntity makeReservation(ReservationEntity reservation, Boolean isAdmin, Double customPrice, Double specialDiscount) {
         boolean isAdminUser = Boolean.TRUE.equals(isAdmin);
         LocalDateTime newStart = reservation.getReservationDate();
         LocalDateTime newEnd = calculateEndTime(newStart, reservation.getLapsOrTime());
+
+        // Verificar que el horario esté dentro del horario de atención
+        if (!isWithinWorkingHours(newStart.toLocalDate(), newStart.toLocalTime(), newEnd.toLocalTime())) {
+            throw new IllegalArgumentException("La reserva está fuera del horario de atención.");
+        }
+
+        // Verificar si hay suficientes karts
+        List<KartEntity> kartsDisponibles = kartService.getKartsByAvailability(true); // usa tu método
+        if (reservation.getNumberPeople() > kartsDisponibles.size()) {
+            throw new IllegalArgumentException("No hay suficientes karts disponibles para esta reserva.");
+        }
+
 
         List<ReservationEntity> reservations = reservationRepository.findAll();
         for (ReservationEntity r : reservations) {
@@ -184,7 +227,7 @@ public class ReservationService {
         }
 
         double basePrice = (isAdminUser && customPrice != null && customPrice > 0) ? customPrice : calculateBasePrice(reservation.getLapsOrTime());
-        boolean isWeekend = isWeekend(reservation.getReservationDate());
+        boolean isWeekend = isHoliday(LocalDate.from(reservation.getReservationDate()));
         int groupDiscount = calculateDiscountNumberPeople(reservation.getNumberPeople());
         Map<CustomerEntity, Integer> visitDiscounts = calculateDiscountFrecuentorDays(participants);
         Set<CustomerEntity> birthdayClients = getBirthdayCustomers(participants, LocalDate.from(reservation.getReservationDate()));
@@ -238,7 +281,7 @@ public class ReservationService {
 
             detailParticipants.add(List.of(
                     c.getName(),
-                    (int) basePrice,
+                    (int) Math.round(basePrice * 100) / 100,
                     groupDiscount,
                     visitDiscount,
                     birthday ? "Sí" : "No",
@@ -301,7 +344,8 @@ public class ReservationService {
             String lapsOrTimeReservation = r.getLapsOrTime() + " vueltas o máx. " + r.getLapsOrTime() + " minutos";
             double totalReservation = 0;
             try {
-                List<List<Object>> detail = mapper.readValue(r.getGroupDetail(), new TypeReference<List<List<Object>>>() {});
+                List<List<Object>> detail = mapper.readValue(r.getGroupDetail(), new TypeReference<List<List<Object>>>() {
+                });
                 for (List<Object> row : detail) {
                     Object tarifa = row.get(1);
                     if (tarifa instanceof Number total) {
@@ -317,9 +361,13 @@ public class ReservationService {
                     intermediate.get(lapsOrTimeReservation).getOrDefault(monthReservation, 0.0) + totalReservation);
         }
 
-        Set<String> allMonths = intermediate.values().stream()
-                .flatMap(m -> m.keySet().stream())
-                .collect(Collectors.toCollection(TreeSet::new));
+        // Generar lista de todos los meses entre startDate y endDate
+        Set<String> allMonths = new TreeSet<>();
+        LocalDate current = startDate.withDayOfMonth(1);
+        while (!current.isAfter(endDate.withDayOfMonth(1))) {
+            allMonths.add(current.getYear() + "-" + String.format("%02d", current.getMonthValue()));
+            current = current.plusMonths(1);
+        }
 
         Map<String, Map<String, Double>> result = new LinkedHashMap<>();
         Map<String, Double> totalPerMonth = new TreeMap<>();
@@ -366,7 +414,8 @@ public class ReservationService {
 
             double totalReservation = 0;
             try {
-                List<List<Object>> detail = mapper.readValue(r.getGroupDetail(), new TypeReference<List<List<Object>>>() {});
+                List<List<Object>> detail = mapper.readValue(r.getGroupDetail(), new TypeReference<List<List<Object>>>() {
+                });
                 for (List<Object> row : detail) {
                     Object tarifa = row.get(1);
                     if (tarifa instanceof Number total) {
@@ -382,9 +431,12 @@ public class ReservationService {
                     intermediate.get(range).getOrDefault(monthReservation, 0.0) + totalReservation);
         }
 
-        Set<String> allMonths = intermediate.values().stream()
-                .flatMap(m -> m.keySet().stream())
-                .collect(Collectors.toCollection(TreeSet::new));
+        Set<String> allMonths = new TreeSet<>();
+        LocalDate current = startDate.withDayOfMonth(1);
+        while (!current.isAfter(endDate.withDayOfMonth(1))) {
+            allMonths.add(current.getYear() + "-" + String.format("%02d", current.getMonthValue()));
+            current = current.plusMonths(1);
+        }
 
         Map<String, Map<String, Double>> result = new LinkedHashMap<>();
         Map<String, Double> totalPerMonth = new TreeMap<>();
@@ -415,6 +467,7 @@ public class ReservationService {
         return result;
     }
 
+
     public ReservationEntity getReservationById(Long id) {
         return reservationRepository.findById(id).get();
     }
@@ -438,5 +491,35 @@ public class ReservationService {
 
     public List<ReservationEntity> getAllReservations() {
         return reservationRepository.findAll();
+    }
+
+    public List<Map<String, Object>> getAllReservationsByDuration() {
+        List<ReservationEntity> reservations = reservationRepository.findAll();
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (ReservationEntity r : reservations) {
+            LocalDateTime start = r.getReservationDate();
+            int laps = r.getLapsOrTime();
+            int duration;
+
+            if (laps == 10) duration = 30;
+            else if (laps == 15) duration = 35;
+            else if (laps == 20) duration = 40;
+            else duration = laps + 20;
+
+            LocalDateTime end = start.plusMinutes(duration);
+
+            Optional<CustomerEntity> user = Optional.ofNullable(customerRepository.findByRut(r.getRutUser()));
+
+            Map<String, Object> reservation = new HashMap<>();
+            reservation.put("start", start.toString());
+            reservation.put("end", end.toString());
+            reservation.put("title", user.map(CustomerEntity::getName).orElse(r.getRutUser()));
+
+            result.add(reservation);
+        }
+
+        return result;
     }
 }

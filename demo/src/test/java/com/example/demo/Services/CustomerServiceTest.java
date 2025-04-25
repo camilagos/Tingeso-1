@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
@@ -89,32 +90,50 @@ public class CustomerServiceTest {
     }
 
     @Test
-    void login_returns1_whenAdminCredentialsCorrect() {
-        CustomerEntity user = new CustomerEntity();
-        user.setEmail("admin@mail.com");
-        user.setPassword("123");
-        user.setAdmin(true);
+    void login_returns1_whenAdminCredentialsAreCorrect() {
+        CustomerEntity input = new CustomerEntity();
+        input.setEmail("admin@mail.com");
+        input.setPassword("admin123");
 
-        when(customerRepository.findByEmail("admin@mail.com")).thenReturn(user);
+        CustomerEntity stored = new CustomerEntity();
+        stored.setEmail("admin@mail.com");
+        stored.setPassword("admin123");
+        stored.setAdmin(true);
 
-        assertThat(customerService.login("admin@mail.com", "123")).isEqualTo(1);
+        when(customerRepository.findByEmailAndPassword("admin@mail.com", "admin123")).thenReturn(stored);
+
+        CustomerEntity result = customerService.login(input);
+        assertThat(result).isEqualTo(stored);
     }
 
     @Test
-    void login_returns0_whenUserCredentialsCorrect() {
-        CustomerEntity user = new CustomerEntity();
-        user.setEmail("user@mail.com");
-        user.setPassword("pass");
-        user.setAdmin(false);
+    void login_returns0_whenUserCredentialsAreCorrectAndNotAdmin() {
+        CustomerEntity input = new CustomerEntity();
+        input.setEmail("user@mail.com");
+        input.setPassword("userpass");
 
-        when(customerRepository.findByEmail("user@mail.com")).thenReturn(user);
+        CustomerEntity stored = new CustomerEntity();
+        stored.setEmail("user@mail.com");
+        stored.setPassword("userpass");
+        stored.setAdmin(false);
 
-        assertThat(customerService.login("user@mail.com", "pass")).isEqualTo(0);
+        when(customerRepository.findByEmailAndPassword("user@mail.com", "userpass")).thenReturn(stored);
+
+        CustomerEntity result = customerService.login(input);
+        assertThat(result).isEqualTo(stored);
     }
 
     @Test
-    void login_returnsMinus1_whenCredentialsIncorrect() {
-        when(customerRepository.findByEmail("wrong@mail.com")).thenReturn(null);
-        assertThat(customerService.login("wrong@mail.com", "pass")).isEqualTo(-1);
+    void login_throwsException_whenUserNotFound() {
+        CustomerEntity input = new CustomerEntity();
+        input.setEmail("ghost@mail.com");
+        input.setPassword("whatever");
+
+        when(customerRepository.findByEmailAndPassword("ghost@mail.com", "whatever"))
+                .thenReturn(null);
+
+        assertThatThrownBy(() -> customerService.login(input))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Email o contraseña incorrectos");
     }
 }

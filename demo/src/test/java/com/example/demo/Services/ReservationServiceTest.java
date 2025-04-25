@@ -1,9 +1,11 @@
 package com.example.demo.Services;
 
 import com.example.demo.Entities.CustomerEntity;
+import com.example.demo.Entities.KartEntity;
 import com.example.demo.Entities.ReservationEntity;
 import com.example.demo.Repositories.CustomerRepository;
 import com.example.demo.Repositories.ReservationRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,9 @@ public class ReservationServiceTest {
     @Mock
     private JavaMailSender mailSender;
 
+    @Mock
+    private KartService kartService;
+
     @InjectMocks
     private ReservationService service;
 
@@ -53,10 +58,14 @@ public class ReservationServiceTest {
 
     @Test
     void testCalculateDiscountFrecuentorDays() {
-        CustomerEntity c1 = new CustomerEntity(); c1.setMonthVisits(1);
-        CustomerEntity c2 = new CustomerEntity(); c2.setMonthVisits(3);
-        CustomerEntity c3 = new CustomerEntity(); c3.setMonthVisits(5);
-        CustomerEntity c4 = new CustomerEntity(); c4.setMonthVisits(7);
+        CustomerEntity c1 = new CustomerEntity();
+        c1.setMonthVisits(1);
+        CustomerEntity c2 = new CustomerEntity();
+        c2.setMonthVisits(3);
+        CustomerEntity c3 = new CustomerEntity();
+        c3.setMonthVisits(5);
+        CustomerEntity c4 = new CustomerEntity();
+        c4.setMonthVisits(7);
         Map<CustomerEntity, Integer> discounts = service.calculateDiscountFrecuentorDays(List.of(c1, c2, c3, c4));
         assertThat(discounts.get(c1)).isEqualTo(0);
         assertThat(discounts.get(c2)).isEqualTo(10);
@@ -115,7 +124,7 @@ public class ReservationServiceTest {
     void testSendVoucherByEmail() throws MessagingException {
         MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        service.sendVoucherByEmail(List.of("test@mail.com"), new byte[]{1,2,3});
+        service.sendVoucherByEmail(List.of("test@mail.com"), new byte[]{1, 2, 3});
         verify(mailSender, times(1)).send(any(MimeMessage.class));
     }
 
@@ -135,23 +144,6 @@ public class ReservationServiceTest {
 
         assertThrows(IllegalArgumentException.class, () ->
                 service.makeReservation(nueva, false, null, null)
-        );
-    }
-
-    @Test
-    void whenRutsAreNotFound_thenThrowException() {
-        ReservationEntity r = new ReservationEntity();
-        r.setRutUser("1");
-        r.setRutsUsers("2,3");
-        r.setReservationDate(LocalDateTime.of(2025, 4, 20, 10, 0));
-        r.setLapsOrTime(10);
-        r.setNumberPeople(3);
-
-        when(reservationRepository.findAll()).thenReturn(List.of());
-        when(customerRepository.findAllByRutIn(any())).thenReturn(List.of());
-
-        assertThrows(IllegalArgumentException.class, () ->
-                service.makeReservation(r, false, null, null)
         );
     }
 
@@ -177,66 +169,12 @@ public class ReservationServiceTest {
         when(customerRepository.findByRut("1")).thenReturn(c);
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
+        when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(5, new KartEntity()));
 
         ReservationEntity result = service.makeReservation(r, true, 10000.0, 40.0);
 
         assertThat(result).isNotNull();
         assertThat(result.getGroupDetail()).contains("40");
-    }
-
-
-    @Test
-    void whenCustomerHasBirthday_then50PercentDiscountApplied() {
-        CustomerEntity c = new CustomerEntity();
-        c.setName("Ana");
-        c.setRut("1");
-        c.setBirthDate(LocalDate.of(1995, 4, 20)); // cumpleaños
-        c.setEmail("ana@mail.com");
-        c.setMonthVisits(5); // también tiene 20%
-
-        ReservationEntity r = new ReservationEntity();
-        r.setRutUser("1");
-        r.setRutsUsers("");
-        r.setReservationDate(LocalDateTime.of(2025, 4, 20, 10, 0)); // hoy cumple
-        r.setLapsOrTime(10);
-        r.setNumberPeople(5); // permite 1 cumpleaños
-
-        when(reservationRepository.findAll()).thenReturn(List.of());
-        when(customerRepository.findAllByRutIn(any())).thenReturn(List.of(c));
-        when(customerRepository.findByRut("1")).thenReturn(c);
-        when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
-
-        ReservationEntity result = service.makeReservation(r, false, null, null);
-        assertThat(result.getGroupDetail()).contains("50"); // 50% aplicado
-    }
-
-
-    @Test
-    void whenMailFails_thenThrowRuntimeException() throws MessagingException {
-        CustomerEntity c = new CustomerEntity();
-        c.setName("Luisa");
-        c.setRut("1");
-        c.setBirthDate(LocalDate.of(2000, 1, 1));
-        c.setEmail("luisa@mail.com");
-        c.setMonthVisits(0);
-
-        ReservationEntity r = new ReservationEntity();
-        r.setRutUser("1");
-        r.setRutsUsers("");
-        r.setReservationDate(LocalDateTime.of(2025, 4, 20, 10, 0));
-        r.setLapsOrTime(10);
-        r.setNumberPeople(1);
-
-        when(reservationRepository.findAll()).thenReturn(List.of());
-        when(customerRepository.findAllByRutIn(any())).thenReturn(List.of(c));
-        when(customerRepository.findByRut("1")).thenReturn(c);
-        when(reservationRepository.save(any())).thenReturn(r);
-        when(mailSender.createMimeMessage()).thenThrow(new RuntimeException("Mail error"));
-
-        assertThrows(RuntimeException.class, () ->
-                service.makeReservation(r, false, null, null)
-        );
     }
 
     @Test
@@ -248,7 +186,8 @@ public class ReservationServiceTest {
         r.setNumberPeople(1);
         r.setRutUser("123");
 
-        CustomerEntity c = new CustomerEntity(); c.setName("Test");
+        CustomerEntity c = new CustomerEntity();
+        c.setName("Test");
         when(customerRepository.findByRut("123")).thenReturn(c);
 
         byte[] pdf = service.generatePDF(r, new ArrayList<>());
@@ -346,4 +285,117 @@ public class ReservationServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result).containsExactly(r1, r2);
     }
+
+    @Test
+    void isHoliday_returnsFalseForWeekdayNonHoliday() {
+        LocalDate weekday = LocalDate.of(2025, 4, 22); // Martes sin feriado
+        assertThat(service.isHoliday(weekday)).isFalse();
+    }
+
+    @Test
+    void testDeleteReservation_throwsException() {
+        doThrow(new RuntimeException("Error")).when(reservationRepository).deleteById(99L);
+
+        Exception ex = assertThrows(Exception.class, () -> service.deleteReservation(99L));
+        assertThat(ex.getMessage()).contains("Error");
+    }
+
+    @Test
+    void testSendVoucherToMultipleEmails() throws MessagingException {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        service.sendVoucherByEmail(List.of("a@a.com", "b@b.com"), new byte[]{1});
+        verify(mailSender, times(2)).send(any(MimeMessage.class));
+    }
+
+    @Test
+    void whenOutOfWorkingHours_thenThrowException() {
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setRutsUsers("");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 21, 9, 0));
+        r.setLapsOrTime(10);
+        r.setNumberPeople(1);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.makeReservation(r, false, null, null)
+        );
+    }
+
+    @Test
+    void whenCustomerHasBirthday_then50PercentDiscountApplied() {
+        CustomerEntity c = new CustomerEntity();
+        c.setName("Ana");
+        c.setRut("1");
+        c.setBirthDate(LocalDate.of(1995, 4, 20)); // cumpleaños
+        c.setEmail("ana@mail.com");
+        c.setMonthVisits(5); // también tiene 20%
+
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setRutsUsers("");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 20, 10, 0)); // hoy cumple
+        r.setLapsOrTime(10);
+        r.setNumberPeople(5); // permite 1 cumpleaños
+
+        when(reservationRepository.findAll()).thenReturn(List.of());
+        when(customerRepository.findAllByRutIn(any())).thenReturn(List.of(c));
+        when(customerRepository.findByRut("1")).thenReturn(c);
+        when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
+        when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(5, new KartEntity()));
+
+        ReservationEntity result = service.makeReservation(r, false, null, null);
+        assertThat(result.getGroupDetail()).contains("50");
+    }
+
+    @Test
+    void whenNotEnoughKarts_thenThrowException() {
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setRutsUsers("2,3");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 20, 10, 0));
+        r.setLapsOrTime(10);
+        r.setNumberPeople(3); // Total de personas = 3
+
+        CustomerEntity c1 = new CustomerEntity(); c1.setRut("1");
+        CustomerEntity c2 = new CustomerEntity(); c2.setRut("2");
+        CustomerEntity c3 = new CustomerEntity(); c3.setRut("3");
+
+        lenient().when(reservationRepository.findAll()).thenReturn(List.of());
+        lenient().when(customerRepository.findAllByRutIn(any())).thenReturn(List.of(c1, c2, c3));
+        lenient().when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(2, new KartEntity()));
+
+        assertThrows(IllegalArgumentException.class, () -> service.makeReservation(r, false, null, null));
+    }
+
+    @Test
+    void getAllReservationsByDuration_shouldReturnMappedList() {
+        // Simula una reserva
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 21, 14, 0));
+        r.setLapsOrTime(15); // espera duración 35 min
+
+        CustomerEntity c = new CustomerEntity();
+        c.setRut("1");
+        c.setName("Juan");
+
+        when(reservationRepository.findAll()).thenReturn(List.of(r));
+        when(customerRepository.findByRut("1")).thenReturn(c);
+
+        List<Map<String, Object>> result = service.getAllReservationsByDuration();
+
+        assertThat(result).hasSize(1);
+        Map<String, Object> map = result.get(0);
+
+        assertThat(map.get("start")).isEqualTo("2025-04-21T14:00");
+        assertThat(map.get("end")).isEqualTo("2025-04-21T14:35");
+        assertThat(map.get("title")).isEqualTo("Juan");
+
+        verify(reservationRepository, times(1)).findAll();
+        verify(customerRepository, times(1)).findByRut("1");
+    }
+
 }

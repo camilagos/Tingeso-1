@@ -22,7 +22,6 @@ public class CustomerController {
             return ResponseEntity.badRequest().build();
         }
         return ResponseEntity.ok(user);
-
     }
 
     @GetMapping("/{id}")
@@ -50,7 +49,7 @@ public class CustomerController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Integer> login(@RequestBody String email, String password) {
-        return ResponseEntity.ok(customerService.login(email, password));
+    public ResponseEntity<CustomerEntity> login(@RequestBody CustomerEntity customer) {
+        return ResponseEntity.ok(customerService.login(customer));
     }
 }
