@@ -25,8 +25,8 @@ pipeline{
                 dir("demo"){
                     script{
                         bat "docker context use default"
-                         withDockerRegistry(credentialsId: 'git-credentials',
-                         url: 'https://index.docker.io/v1/'){
+                        withCredentials([string(credentialsId: 'git-credentials', variable: 'dhpsw')]) {
+                            bat 'echo %dhpsw% | docker login -u camilagos --password-stdin'
                             bat "docker build -t camilagos/back-image:latest ."
                             bat "docker push camilagos/back-image:latest"
                         }
