@@ -24,7 +24,8 @@ pipeline{
             steps{
                 dir("demo"){
                     script{
-                         withDockerRegistry(credentialsId: 'docker-credentials'){
+                         withDockerRegistry(credentialsId: 'docker-credentials',
+                         url: 'https://index.docker.io/v1/'){
                             bat "docker build -t camilagos/back-image ."
                             bat "docker push camilagos/back-image"
                         }
