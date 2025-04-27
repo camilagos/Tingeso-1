@@ -9,7 +9,6 @@ import ReportByPerson from './components/ReportByPerson';
 import Rack from './components/Rack';
 import Navbar from "./components/Navbar"
 import Home from './components/Home';
-import NotFound from './components/NotFound';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 
@@ -27,7 +26,6 @@ function App() {
               <Route path="/reportByLapsOrTime" element={<ReportByLapsOrTime />} />
               <Route path="/reportByPerson" element={<ReportByPerson />} />
               <Route path="/rack" element={<Rack />} />
-              <Route path="*" element={<NotFound/>} />
             </Routes>
           </div>
       </Router>

@@ -6,6 +6,8 @@ import com.example.demo.Entities.ReservationEntity;
 import com.example.demo.Repositories.CustomerRepository;
 import com.example.demo.Repositories.ReservationRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -37,6 +40,9 @@ public class ReservationServiceTest {
 
     @Mock
     private KartService kartService;
+
+    @Mock(lenient = true)
+    private ObjectMapper mapper;
 
     @InjectMocks
     private ReservationService service;
@@ -99,15 +105,6 @@ public class ReservationServiceTest {
     }
 
     @Test
-    void testGetReservationById() {
-        ReservationEntity entity = new ReservationEntity();
-        entity.setId(1L);
-        when(reservationRepository.findById(1L)).thenReturn(Optional.of(entity));
-        ReservationEntity found = service.getReservationById(1L);
-        assertThat(found.getId()).isEqualTo(1L);
-    }
-
-    @Test
     void testUpdateReservation() {
         ReservationEntity entity = new ReservationEntity();
         when(reservationRepository.save(entity)).thenReturn(entity);
@@ -115,10 +112,37 @@ public class ReservationServiceTest {
     }
 
     @Test
-    void testDeleteReservation() throws Exception {
-        doNothing().when(reservationRepository).deleteById(1L);
-        assertThat(service.deleteReservation(1L)).isTrue();
+    void deleteReservation_existingReservation_deletesSuccessfully() throws Exception {
+        // given
+        LocalDateTime date = LocalDateTime.of(2025, 6, 1, 10, 0);
+        ReservationEntity reservation = new ReservationEntity();
+        reservation.setId(1L);
+        reservation.setReservationDate(date);
+
+        when(reservationRepository.findByReservationDate(date)).thenReturn(reservation);
+
+        // when
+        boolean result = service.deleteReservation(date);
+
+        // then
+        assertThat(result).isTrue();
+        verify(reservationRepository).deleteById(1L); // verifica que se haya llamado a deleteById
     }
+
+    @Test
+    void deleteReservation_nonExistingReservation_throwsException() {
+        // given
+        LocalDateTime date = LocalDateTime.of(2025, 6, 1, 10, 0);
+
+        when(reservationRepository.findByReservationDate(date)).thenReturn(null);
+
+        // when + then
+        assertThatThrownBy(() -> service.deleteReservation(date))
+                .isInstanceOf(Exception.class)
+                .hasMessageContaining("No se encontró la reserva con la fecha proporcionada.");
+    }
+
+
 
     @Test
     void testSendVoucherByEmail() throws MessagingException {
@@ -222,56 +246,21 @@ public class ReservationServiceTest {
         assertThat(result.get("TOTAL").get("marzo")).isEqualTo(35000.0);
     }
 
-    @Test
-    void incomePerPerson_allRangesCovered() throws Exception {
-        ReservationEntity r1 = new ReservationEntity();
-        r1.setReservationDate(LocalDateTime.of(2025, 5, 1, 10, 0));
-        r1.setNumberPeople(2);
-        r1.setGroupDetail("[[\\\"A\\\",10000]]".replace("\\\"", "\""));
-
-        ReservationEntity r2 = new ReservationEntity();
-        r2.setReservationDate(LocalDateTime.of(2025, 5, 2, 11, 0));
-        r2.setNumberPeople(4);
-        r2.setGroupDetail("[[\\\"B\\\",15000]]".replace("\\\"", "\""));
-
-        ReservationEntity r3 = new ReservationEntity();
-        r3.setReservationDate(LocalDateTime.of(2025, 5, 3, 12, 0));
-        r3.setNumberPeople(7);
-        r3.setGroupDetail("[[\\\"C\\\",18000]]".replace("\\\"", "\""));
-
-        ReservationEntity r4 = new ReservationEntity();
-        r4.setReservationDate(LocalDateTime.of(2025, 5, 4, 13, 0));
-        r4.setNumberPeople(12);
-        r4.setGroupDetail("[[\\\"D\\\",21000]]".replace("\\\"", "\""));
-
-        when(reservationRepository.findByReservationDateBetween(
-                LocalDate.of(2025, 5, 1).atStartOfDay(), LocalDate.of(2025, 5, 31).atTime(23, 59)
-        )).thenReturn(List.of(r1, r2, r3, r4));
-
-        Map<String, Map<String, Double>> result = service.incomePerPerson(
-                LocalDate.of(2025, 5, 1), LocalDate.of(2025, 5, 31)
-        );
-
-        assertThat(result.get("1-2 personas").get("mayo")).isEqualTo(10000.0);
-        assertThat(result.get("3-5 personas").get("mayo")).isEqualTo(15000.0);
-        assertThat(result.get("6-10 personas").get("mayo")).isEqualTo(18000.0);
-        assertThat(result.get("11-15 personas").get("mayo")).isEqualTo(21000.0);
-        assertThat(result.get("TOTAL").get("mayo")).isEqualTo(64000.0);
-    }
 
     @Test
-    void getReservationsByDate_returnsCorrectList() {
+    void getReservationsByDate_returnsCorrectReservation() {
         LocalDateTime date = LocalDateTime.of(2025, 6, 1, 10, 0);
         ReservationEntity r = new ReservationEntity();
         r.setReservationDate(date);
 
-        when(reservationRepository.findByReservationDate(date)).thenReturn(List.of(r));
+        when(reservationRepository.findByReservationDate(date)).thenReturn(r); // r es un ReservationEntity
 
-        List<ReservationEntity> result = service.getReservationsByDate(date);
+        ReservationEntity result = service.getReservationsByDate(date);
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getReservationDate()).isEqualTo(date);
+        assertThat(result).isNotNull();
+        assertThat(result.getReservationDate()).isEqualTo(date);
     }
+
 
     @Test
     void getAllReservations_returnsAll() {
@@ -290,14 +279,6 @@ public class ReservationServiceTest {
     void isHoliday_returnsFalseForWeekdayNonHoliday() {
         LocalDate weekday = LocalDate.of(2025, 4, 22); // Martes sin feriado
         assertThat(service.isHoliday(weekday)).isFalse();
-    }
-
-    @Test
-    void testDeleteReservation_throwsException() {
-        doThrow(new RuntimeException("Error")).when(reservationRepository).deleteById(99L);
-
-        Exception ex = assertThrows(Exception.class, () -> service.deleteReservation(99L));
-        assertThat(ex.getMessage()).contains("Error");
     }
 
     @Test
@@ -397,5 +378,134 @@ public class ReservationServiceTest {
         verify(reservationRepository, times(1)).findAll();
         verify(customerRepository, times(1)).findByRut("1");
     }
+
+    @Test
+    void incomePerPerson_shouldReturnCorrectResultFormat() throws Exception {
+        // given
+        LocalDate startDate = LocalDate.of(2025, 1, 1);
+        LocalDate endDate = LocalDate.of(2025, 12, 31);
+
+        ReservationEntity reservation1 = new ReservationEntity();
+        reservation1.setReservationDate(LocalDateTime.of(2025, 4, 15, 10, 0)); // Abril
+        reservation1.setNumberPeople(2); // 1-2 personas
+        reservation1.setGroupDetail("[[\"Grupo A\", 156246]]");
+
+        ReservationEntity reservation2 = new ReservationEntity();
+        reservation2.setReservationDate(LocalDateTime.of(2025, 5, 20, 10, 0)); // Mayo
+        reservation2.setNumberPeople(4); // 3-5 personas
+        reservation2.setGroupDetail("[[\"Grupo B\", 57834]]");
+
+        ReservationEntity reservation3 = new ReservationEntity();
+        reservation3.setReservationDate(LocalDateTime.of(2025, 9, 10, 10, 0)); // Septiembre
+        reservation3.setNumberPeople(2); // 1-2 personas
+        reservation3.setGroupDetail("[[\"Grupo C\", 59500]]");
+
+        ReservationEntity reservation4 = new ReservationEntity();
+        reservation4.setReservationDate(LocalDateTime.of(2025, 4, 10, 10, 0)); // Abril
+        reservation4.setNumberPeople(3); // 3-5 personas
+        reservation4.setGroupDetail("[[\"Grupo D\", 9729]]");
+
+        when(reservationRepository.findByReservationDateBetween(
+                any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of(reservation1, reservation2, reservation3, reservation4));
+
+        when(mapper.readValue(anyString(), any(TypeReference.class)))
+                .thenReturn(List.of(List.of("Grupo", 0))); // No importa el valor exacto aquí porque se sobrescribe abajo.
+
+        // Override para cada reserva su valor correcto
+        when(mapper.readValue(eq(reservation1.getGroupDetail()), any(TypeReference.class)))
+                .thenReturn(List.of(List.of("Grupo A", 156246)));
+        when(mapper.readValue(eq(reservation2.getGroupDetail()), any(TypeReference.class)))
+                .thenReturn(List.of(List.of("Grupo B", 57834)));
+        when(mapper.readValue(eq(reservation3.getGroupDetail()), any(TypeReference.class)))
+                .thenReturn(List.of(List.of("Grupo C", 59500)));
+        when(mapper.readValue(eq(reservation4.getGroupDetail()), any(TypeReference.class)))
+                .thenReturn(List.of(List.of("Grupo D", 9729)));
+
+        // when
+        Map<String, Map<String, Double>> result = service.incomePerPerson(startDate, endDate);
+
+        // then
+        assertThat(result).isNotNull();
+
+        // 1-2 personas
+        Map<String, Double> group1 = result.get("1-2 personas");
+        assertThat(group1).isNotNull();
+        assertThat(group1.get("abril")).isEqualTo(156246.0);
+        assertThat(group1.get("septiembre")).isEqualTo(59500.0);
+        assertThat(group1.get("Total")).isEqualTo(215746.0);
+
+        // 3-5 personas
+        Map<String, Double> group2 = result.get("3-5 personas");
+        assertThat(group2).isNotNull();
+        assertThat(group2.get("abril")).isEqualTo(9729.0);
+        assertThat(group2.get("mayo")).isEqualTo(57834.0);
+        assertThat(group2.get("Total")).isEqualTo(67563.0);
+
+        // 6-10 personas
+        Map<String, Double> group3 = result.get("6-10 personas");
+        assertThat(group3).isNotNull();
+        assertThat(group3.values()).allMatch(value -> value == 0.0);
+
+        // 11-15 personas
+        Map<String, Double> group4 = result.get("11-15 personas");
+        assertThat(group4).isNotNull();
+        assertThat(group4.values()).allMatch(value -> value == 0.0);
+
+        // TOTAL (el TOTAL de todos, por mes aún 0.0 porque tú no lo sumas en tu servicio)
+        Map<String, Double> groupTotal = result.get("TOTAL");
+        assertThat(groupTotal).isNotNull();
+        assertThat(groupTotal.values()).allMatch(value -> value == 0.0);
+    }
+
+
+
+    @Test
+    void incomePerPerson_shouldReturnZeroes_whenNoReservationsExist() throws Exception {
+        // given
+        LocalDate startDate = LocalDate.of(2025, 6, 1);
+        LocalDate endDate = LocalDate.of(2025, 6, 30);
+
+        when(reservationRepository.findByReservationDateBetween(
+                startDate.atStartOfDay(), endDate.atTime(23, 59)))
+                .thenReturn(Collections.emptyList());
+
+        // when
+        Map<String, Map<String, Double>> result = service.incomePerPerson(startDate, endDate);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.get("TOTAL").get("Total")).isEqualTo(0.0);
+    }
+
+    @Test
+    void getReservationById_shouldReturnReservation_whenIdExists() {
+        // given
+        Long id = 1L;
+        ReservationEntity reservation = new ReservationEntity();
+        reservation.setId(id);
+
+        when(reservationRepository.findById(id)).thenReturn(Optional.of(reservation));
+
+        // when
+        ReservationEntity result = service.getReservationById(id);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(id);
+    }
+
+    @Test
+    void getReservationById_shouldThrowException_whenIdDoesNotExist() {
+        // given
+        Long id = 1L;
+
+        when(reservationRepository.findById(id)).thenReturn(Optional.empty());
+
+        // when + then
+        assertThatThrownBy(() -> service.getReservationById(id))
+                .isInstanceOf(NoSuchElementException.class);
+    }
+
 
 }

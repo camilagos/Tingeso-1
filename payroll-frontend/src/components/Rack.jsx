@@ -10,6 +10,7 @@ import {
   Card,
   CardContent,
   Divider,
+  Button,
 } from "@mui/material";
 
 import reservationService from "../services/reservation.service";
@@ -24,7 +25,6 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-// Mapa de colores por cliente
 const clienteColorMap = {};
 
 const generateColorFromName = (name) => {
@@ -33,7 +33,7 @@ const generateColorFromName = (name) => {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const hue = hash % 360;
-  return `hsl(${hue}, 70%, 60%)`; // color pastel
+  return `hsl(${hue}, 70%, 60%)`;
 };
 
 const Rack = () => {
@@ -84,6 +84,34 @@ const Rack = () => {
     setEventoSeleccionado(event);
   };
 
+  const cancelarReserva = async () => {
+    if (!eventoSeleccionado) return;
+  
+    const confirmacion = window.confirm("¿Seguro que quieres cancelar esta reserva?");
+    if (!confirmacion) return;
+  
+    try {
+      const date = eventoSeleccionado.start;
+      const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}T${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+  
+      await reservationService.remove(formattedDate);
+  
+      alert("Reserva cancelada exitosamente");
+  
+      const res = await reservationService.getAllReservationsByDuration();
+      const mapped = res.data.map((r) => ({
+        title: r.title,
+        start: new Date(r.start),
+        end: new Date(r.end),
+      }));
+      setEvents(mapped);
+      setEventoSeleccionado(null);
+    } catch (error) {
+      console.error(error);
+      alert("Error al cancelar la reserva");
+    }
+  };
+  
   return (
     <Box sx={{ mt: 4, maxWidth: 1100, mx: "auto" }}>
       <Typography variant="h5" fontWeight="bold" gutterBottom>
@@ -135,6 +163,14 @@ const Rack = () => {
               <strong>Término:</strong>{" "}
               {eventoSeleccionado.end.toLocaleString("es-CL")}
             </Typography>
+            <Button
+              variant="contained"
+              color="error"
+              sx={{ mt: 2 }}
+              onClick={cancelarReserva}
+            >
+              Cancelar Reserva
+            </Button>
           </CardContent>
         </Card>
       )}

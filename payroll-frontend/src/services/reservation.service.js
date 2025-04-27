@@ -21,9 +21,9 @@ const update = (data) => {
     return httpClient.put("/reservation/", data);
 };
 
-const remove = (id) => {
-    return httpClient.delete(`/reservation/${id}`);
-};
+const remove = (reservationDate) => {
+    return httpClient.delete(`/reservation/${reservationDate}`);
+  };
 
 const getByDate = (reservationDate) => {
     return httpClient.get(`/reservation/date/${reservationDate}`);

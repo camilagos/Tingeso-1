@@ -1,0 +1,90 @@
+version: "3.8"
+
+services:
+  # Frontend services
+  frontend1:
+    image: camilagos/front-image:latest
+    networks:
+      - frontend-network
+
+  frontend2:
+    image: camilagos/front-image:latest
+    networks:
+      - frontend-network
+
+  frontend3:
+    image: camilagos/front-image:latest
+    networks:
+      - frontend-network
+
+  # Backend services
+  backend1:
+    image: camilagos/spring-image:latest
+    environment:
+      - DB_HOST=postgres
+    networks:
+      - backend-network
+
+  backend2:
+    image: camilagos/spring-image:latest
+    environment:
+      - DB_HOST=postgres
+    networks:
+      - backend-network
+
+  backend3:
+    image: camilagos/spring-image:latest
+    environment:
+      - DB_HOST=postgres
+    networks:
+      - backend-network
+
+  # Nginx for frontend load balancing
+  nginx-frontend:
+    image: nginx:latest
+    ports:
+      - "8095:80"
+    volumes:
+      - ./nginx-frontend.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend1
+      - frontend2
+      - frontend3
+    networks:
+      - frontend-network
+
+  # Nginx for backend load balancing
+  nginx-backend:
+    image: nginx:latest
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./nginx-backend.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - backend1
+      - backend2
+      - backend3
+    networks:
+      - backend-network
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres-container
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: tingeso1
+    ports:
+      - 5435:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend-network
+
+volumes:
+  postgres-data:
+
+networks:
+  frontend-network:
+  backend-network:

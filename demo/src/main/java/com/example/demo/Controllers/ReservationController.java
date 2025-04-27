@@ -40,16 +40,17 @@ public class ReservationController {
         return ResponseEntity.ok(reservationUpdated);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Boolean> deleteReservationById(@PathVariable Long id) throws Exception {
-        var isDeleted = reservationService.deleteReservation(id);
+    @DeleteMapping("/{reservationDate}")
+    public ResponseEntity<Void> deleteReservationByDate(@PathVariable LocalDateTime reservationDate) throws Exception {
+        reservationService.deleteReservation(reservationDate);
         return ResponseEntity.noContent().build();
     }
 
+
     @GetMapping("/date/{reservationDate}")
-    public ResponseEntity<List<ReservationEntity>> getReservationsByDate(@PathVariable LocalDateTime reservationDate) {
-        List<ReservationEntity> reservations = reservationService.getReservationsByDate(reservationDate);
-        return ResponseEntity.ok(reservations);
+    public ResponseEntity<ReservationEntity> getReservationsByDate(@PathVariable LocalDateTime reservationDate) {
+        ReservationEntity reservation = reservationService.getReservationsByDate(reservationDate);
+        return ResponseEntity.ok(reservation);
     }
 
     @GetMapping("/income-lapsOrTime")

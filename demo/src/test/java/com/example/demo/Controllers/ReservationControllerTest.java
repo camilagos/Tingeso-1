@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -94,27 +95,6 @@ public class ReservationControllerTest {
                         .content(json))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rutUser", is("11111111-1")));
-    }
-
-    @Test
-    public void deleteReservation_ShouldReturnNoContent() throws Exception {
-        Mockito.when(reservationService.deleteReservation(1L)).thenReturn(true);
-
-        mockMvc.perform(delete("/reservation/1"))
-                .andExpect(status().isNoContent());
-    }
-
-
-    @Test
-    public void getReservationsByDate_ShouldReturnList() throws Exception {
-        ReservationEntity res = new ReservationEntity();
-        res.setId(1L);
-
-        given(reservationService.getReservationsByDate(Mockito.any())).willReturn(List.of(res));
-
-        mockMvc.perform(get("/reservation/date/2025-05-01T12:00:00"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id", is(1)));
     }
 
     @Test

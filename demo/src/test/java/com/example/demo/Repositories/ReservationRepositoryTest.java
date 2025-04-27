@@ -23,7 +23,7 @@ class ReservationRepositoryTest {
     private ReservationRepository reservationRepository;
 
     @Test
-    public void whenFindByReservationDate_thenReturnMatchingReservations() {
+    public void whenFindByReservationDate_thenReturnMatchingReservation() {
         // given
         LocalDateTime now = LocalDateTime.of(2025, 4, 21, 15, 0);
         ReservationEntity reservation = new ReservationEntity();
@@ -31,12 +31,13 @@ class ReservationRepositoryTest {
         entityManager.persistAndFlush(reservation);
 
         // when
-        List<ReservationEntity> found = reservationRepository.findByReservationDate(now);
+        ReservationEntity found = reservationRepository.findByReservationDate(now); // OK, es uno solo
 
         // then
-        assertThat(found).hasSize(1);
-        assertThat(found.get(0).getReservationDate()).isEqualTo(now);
+        assertThat(found).isNotNull(); // Comprobamos que existe
+        assertThat(found.getReservationDate()).isEqualTo(now); // Comprobamos que la fecha es la correcta
     }
+
 
     @Test
     public void whenFindByReservationDateBetween_thenReturnReservationsInRange() {

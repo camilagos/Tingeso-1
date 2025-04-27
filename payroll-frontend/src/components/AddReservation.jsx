@@ -15,12 +15,13 @@ const AddReservation = () => {
   const isAdmin = user?.admin || false;
 
   const [form, setForm] = useState({
-    rutUser: user?.rut || "",
+    rutUser: !isAdmin ? user?.rut || "" : "",
     rutsUsers: "",
     reservationDate: "",
     lapsOrTime: 10,
     numberPeople: 1,
   });
+  
 
   const [customPrice, setCustomPrice] = useState(null);
   const [specialDiscount, setSpecialDiscount] = useState(null);
@@ -49,7 +50,6 @@ const AddReservation = () => {
     } catch (err) {
         console.error("Error al crear la reserva:", err);
       
-        // Mensaje genérico claro para el usuario
         const message =
           "No se pudo realizar la reserva. Verifica los datos ingresados o intenta con otro horario.";
       

@@ -137,7 +137,7 @@ public class ReservationService {
         document.add(new Paragraph("Fecha y hora: " + fechaFormateada));
         document.add(new Paragraph("N° de vueltas o Tiempo máximo: " + reservation.getLapsOrTime()));
         document.add(new Paragraph("Cantidad de personas: " + reservation.getNumberPeople()));
-        document.add(new Paragraph("Persona que hizo la reservation: " + customerRepository.findByRut(reservation.getRutUser()).getName()));
+        document.add(new Paragraph("Persona que hizo la reservación: " + customerRepository.findByRut(reservation.getRutUser()).getName()));
         document.add(new Paragraph(" "));
 
         PdfPTable table = new PdfPTable(10);
@@ -347,9 +347,11 @@ public class ReservationService {
                 List<List<Object>> detail = mapper.readValue(r.getGroupDetail(), new TypeReference<List<List<Object>>>() {
                 });
                 for (List<Object> row : detail) {
-                    Object tarifa = row.get(1);
-                    if (tarifa instanceof Number total) {
-                        totalReservation += total.doubleValue();
+                    if (!row.isEmpty()) {
+                        Object tarifa = row.get(row.size() - 1);
+                        if (tarifa instanceof Number total) {
+                            totalReservation += total.doubleValue();
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -371,6 +373,18 @@ public class ReservationService {
 
         Map<String, Map<String, Double>> result = new LinkedHashMap<>();
         Map<String, Double> totalPerMonth = new TreeMap<>();
+
+        // Agregar explícitamente todas las categorías de vueltas/tiempo
+        List<String> allLapsCategories = List.of(
+                "10 vueltas o máx. 10 minutos",
+                "15 vueltas o máx. 15 minutos",
+                "20 vueltas o máx. 20 minutos"
+        );
+
+        for (String category : allLapsCategories) {
+            intermediate.computeIfAbsent(category, k -> new TreeMap<>());
+        }
+
 
         for (String row : intermediate.keySet()) {
             Map<String, Double> rowData = new LinkedHashMap<>();
@@ -417,9 +431,11 @@ public class ReservationService {
                 List<List<Object>> detail = mapper.readValue(r.getGroupDetail(), new TypeReference<List<List<Object>>>() {
                 });
                 for (List<Object> row : detail) {
-                    Object tarifa = row.get(1);
-                    if (tarifa instanceof Number total) {
-                        totalReservation += total.doubleValue();
+                    if (!row.isEmpty()) {
+                        Object tarifa = row.get(row.size() - 1);
+                        if (tarifa instanceof Number total) {
+                            totalReservation += total.doubleValue();
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -441,13 +457,19 @@ public class ReservationService {
         Map<String, Map<String, Double>> result = new LinkedHashMap<>();
         Map<String, Double> totalPerMonth = new TreeMap<>();
 
-        for (String row : intermediate.keySet()) {
+        List<String> allGroupCategories = List.of(
+                "1-2 personas",
+                "3-5 personas",
+                "6-10 personas",
+                "11-15 personas"
+        );
+
+        for (String row : allGroupCategories) {
             Map<String, Double> rowData = new LinkedHashMap<>();
             double totalRow = 0;
             for (String month : allMonths) {
-                double value = intermediate.get(row).getOrDefault(month, 0.0);
+                double value = intermediate.getOrDefault(row, new TreeMap<>()).getOrDefault(month, 0.0);
                 rowData.put(getMonth(month), value);
-                totalPerMonth.put(getMonth(month), totalPerMonth.getOrDefault(getMonth(month), 0.0) + value);
                 totalRow += value;
             }
             rowData.put("Total", totalRow);
@@ -476,8 +498,13 @@ public class ReservationService {
         return reservationRepository.save(reservation);
     }
 
-    public boolean deleteReservation(Long id) throws Exception {
+    public boolean deleteReservation(LocalDateTime date) throws Exception {
         try {
+            ReservationEntity reservation = reservationRepository.findByReservationDate(date);
+            if (reservation == null) {
+                throw new Exception("No se encontró la reserva con la fecha proporcionada.");
+            }
+            Long id = reservation.getId();
             reservationRepository.deleteById(id);
             return true;
         } catch (Exception e) {
@@ -485,7 +512,7 @@ public class ReservationService {
         }
     }
 
-    public List<ReservationEntity> getReservationsByDate(LocalDateTime reservationDate) {
+    public ReservationEntity getReservationsByDate(LocalDateTime reservationDate) {
         return reservationRepository.findByReservationDate(reservationDate);
     }
 
