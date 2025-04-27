@@ -24,10 +24,11 @@ pipeline{
             steps{
                 dir("demo"){
                     script{
+                        bat "docker context use default"
                          withDockerRegistry(credentialsId: 'docker-credentials',
                          url: 'https://index.docker.io/v1/'){
-                            bat "docker build -t camilagos/back-image ."
-                            bat "docker push camilagos/back-image"
+                            bat "docker build -t camilagos/back-image:latest ."
+                            bat "docker push camilagos/back-image:latest"
                         }
                     }                    
                 }
