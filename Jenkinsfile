@@ -24,12 +24,11 @@ pipeline{
             steps{
                 dir("demo"){
                     script{
-                        bat "docker context use default"
-                        withCredentials([string(credentialsId: 'git-credentials', variable: 'dhpsw')]) {
-                            bat 'echo %dhpsw% | docker login -u camilagos --password-stdin'
-                            bat "docker build -t camilagos/back-image:latest ."
-                            bat "docker push camilagos/back-image:latest"
-                        }
+                        withCredentials([usernamePassword(credentialsId: 'git-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                            bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
+                            bat "docker build -t camilagos/spring-image:latest ."
+                            bat "docker push camilagos/spring-image:latest"
+}
                     }                    
                 }
             }
