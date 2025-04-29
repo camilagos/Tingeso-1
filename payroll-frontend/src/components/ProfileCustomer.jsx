@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Box,
-  Typography,
-  Paper,
-  Divider
-} from "@mui/material";
+import {Box, Typography, Paper, Divider, Button} from "@mui/material";
+import customerService from "../services/customer.service";
 
 const ProfileCustomer = () => {
   const [user, setUser] = useState(null);
@@ -20,6 +16,22 @@ const ProfileCustomer = () => {
       setUser(JSON.parse(userData));
     }
   }, [navigate]);
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    const confirmDelete = window.confirm("¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.");
+    if (confirmDelete) {
+      try {
+        await customerService.remove(user.id);
+        localStorage.removeItem("user");
+        alert("Tu cuenta ha sido eliminada.");
+        window.location.href = "/";
+      } catch (error) {
+        console.error(error);
+        alert("Hubo un error al eliminar tu cuenta.");
+      }
+    }
+  };
 
   if (!user) return null;
 
@@ -36,6 +48,13 @@ const ProfileCustomer = () => {
         <Typography><strong>RUT:</strong> {user.rut}</Typography>
         <Typography><strong>Teléfono:</strong> {user.phone}</Typography>
         <Typography><strong>Fecha de nacimiento:</strong> {user.birthDate}</Typography>
+
+        <Divider sx={{ my: 2 }} />
+        
+        <Button variant="contained" color="error" onClick={handleDeleteAccount} fullWidth>
+          Eliminar Cuenta
+        </Button>
+
       </Paper>
     </Box>
   );

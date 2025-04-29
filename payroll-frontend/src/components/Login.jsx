@@ -19,8 +19,6 @@ const Login = () => {
     e.preventDefault();
     try {
       const response = await customerService.login({ email, password });
-      console.log(response.data);
-
 
       if (response.status === 200) {
         // Limpia datos temporales de registro
@@ -32,12 +30,14 @@ const Login = () => {
 
         alert("Inicio de sesión exitoso");
         window.location.href = "/";
-      } else {
-        alert("Email o contraseña incorrectos");
-      }
+      } 
     } catch (error) {
-      console.error(error);
-      alert("Error al conectarse al servidor. Por favor, intenta más tarde.");
+      if (error.response && error.response.status === 401) {
+        alert("Email o contraseña incorrectos");
+      } else {
+        console.error(error);
+        alert("Error al conectarse al servidor. Por favor, intenta más tarde.");
+      }
     }
   };
 
@@ -68,6 +68,7 @@ const Login = () => {
         <Button
           type="submit"
           variant="contained"
+          color="primary"
           fullWidth
           startIcon={<LoginIcon />}
           sx={{ mt: 2 }}

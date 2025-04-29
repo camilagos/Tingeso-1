@@ -92,15 +92,48 @@ public class ReservationService {
         return discount;
     }
 
-    public Map<CustomerEntity, Integer> calculateDiscountFrecuentorDays(List<CustomerEntity> customers) {
-        Map<CustomerEntity, Integer> map = new HashMap<>();
-        for (CustomerEntity c : customers) {
-            int v = c.getMonthVisits();
-            int discount = (v >= 7) ? 30 : (v >= 5) ? 20 : (v >= 2) ? 10 : 0;
-            map.put(c, discount);
+    public Map<CustomerEntity, Integer> calculateDiscountFrequentCustomers(List<CustomerEntity> customers, LocalDateTime reservationDate) {
+        Map<CustomerEntity, Integer> discounts = new HashMap<>();
+
+        LocalDateTime startOfMonth = reservationDate.withDayOfMonth(1).toLocalDate().atStartOfDay();
+        List<ReservationEntity> reservationsThisMonth = reservationRepository.findByReservationDateBetween(startOfMonth, reservationDate);
+
+        for (CustomerEntity customer : customers) {
+            String rut = customer.getRut();
+            int visitCount = 0;
+
+            for (ReservationEntity reservation : reservationsThisMonth) {
+                boolean isMainCustomer = rut.equals(reservation.getRutUser());
+
+                boolean isInParticipants = false;
+                if (reservation.getRutsUsers() != null && !reservation.getRutsUsers().isBlank()) {
+                    isInParticipants = Arrays.stream(reservation.getRutsUsers().split(","))
+                            .map(String::trim)
+                            .anyMatch(rut::equals);
+                }
+
+                if (isMainCustomer || isInParticipants) {
+                    visitCount++;
+                }
+            }
+
+            int discount;
+            if (visitCount >= 7) {
+                discount = 30;
+            } else if (visitCount >= 5) {
+                discount = 20;
+            } else if (visitCount >= 2) {
+                discount = 10;
+            } else {
+                discount = 0;
+            }
+
+            discounts.put(customer, discount);
         }
-        return map;
+
+        return discounts;
     }
+
 
     public Set<CustomerEntity> getBirthdayCustomers(List<CustomerEntity> customers, LocalDate date) {
         return customers.stream()
@@ -229,7 +262,7 @@ public class ReservationService {
         double basePrice = (isAdminUser && customPrice != null && customPrice > 0) ? customPrice : calculateBasePrice(reservation.getLapsOrTime());
         boolean isWeekend = isHoliday(LocalDate.from(reservation.getReservationDate()));
         int groupDiscount = calculateDiscountNumberPeople(reservation.getNumberPeople());
-        Map<CustomerEntity, Integer> visitDiscounts = calculateDiscountFrecuentorDays(participants);
+        Map<CustomerEntity, Integer> visitDiscounts = calculateDiscountFrequentCustomers(participants, reservation.getReservationDate());
         Set<CustomerEntity> birthdayClients = getBirthdayCustomers(participants, LocalDate.from(reservation.getReservationDate()));
 
         int numberPeople = reservation.getNumberPeople();

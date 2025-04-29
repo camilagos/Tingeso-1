@@ -42,7 +42,7 @@ const ReportByLapsOrTime = () => {
           onChange={(e) => setEndDate(e.target.value)}
           required
         />
-        <Button type="submit" variant="contained">Consultar</Button>
+        <Button type="submit" variant="contained" color="primary">Consultar</Button>
       </form>
 
       {data && (

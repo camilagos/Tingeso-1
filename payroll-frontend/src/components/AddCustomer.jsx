@@ -65,7 +65,7 @@ const AddUser = () => {
         <TextField fullWidth margin="normal" name="password" type="password" label="Contraseña" onChange={handleChange} required />
         <TextField fullWidth margin="normal" name="phone" label="Teléfono" onChange={handleChange} required />
         <TextField fullWidth margin="normal" name="birthDate" type="date" InputLabelProps={{ shrink: true }} label="Fecha de nacimiento" onChange={handleChange} required />
-        <Button type="submit" variant="contained" startIcon={<SaveIcon />}>
+        <Button type="submit" variant="contained" color="primary" startIcon={<SaveIcon />}>
           Registrar
         </Button>
       </form>

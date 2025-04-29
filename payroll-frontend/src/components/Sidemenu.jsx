@@ -15,6 +15,8 @@ import BarChartIcon from "@mui/icons-material/BarChart";
 import GroupIcon from "@mui/icons-material/Group";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import Typography from "@mui/material/Typography";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+
 
 
 
@@ -67,6 +69,12 @@ export default function Sidemenu({ open, toggleDrawer }) {
             <ListItemButton onClick={() => navigate("/Rack")}>
               <ListItemIcon><CalendarMonthIcon /></ListItemIcon>
               <ListItemText primary="Rack semanal" />
+            </ListItemButton>
+
+            <Divider />
+            <ListItemButton onClick={() => navigate("/karts")}>
+              <ListItemIcon><DirectionsCarIcon /></ListItemIcon>
+              <ListItemText primary="Gestión de Karts" />
             </ListItemButton>
           </>
         )}

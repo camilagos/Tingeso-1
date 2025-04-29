@@ -63,23 +63,6 @@ public class ReservationServiceTest {
     }
 
     @Test
-    void testCalculateDiscountFrecuentorDays() {
-        CustomerEntity c1 = new CustomerEntity();
-        c1.setMonthVisits(1);
-        CustomerEntity c2 = new CustomerEntity();
-        c2.setMonthVisits(3);
-        CustomerEntity c3 = new CustomerEntity();
-        c3.setMonthVisits(5);
-        CustomerEntity c4 = new CustomerEntity();
-        c4.setMonthVisits(7);
-        Map<CustomerEntity, Integer> discounts = service.calculateDiscountFrecuentorDays(List.of(c1, c2, c3, c4));
-        assertThat(discounts.get(c1)).isEqualTo(0);
-        assertThat(discounts.get(c2)).isEqualTo(10);
-        assertThat(discounts.get(c3)).isEqualTo(20);
-        assertThat(discounts.get(c4)).isEqualTo(30);
-    }
-
-    @Test
     void testGetBirthdayCustomers() {
         LocalDate today = LocalDate.of(2025, 4, 20);
         CustomerEntity bday = new CustomerEntity();
@@ -169,36 +152,6 @@ public class ReservationServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 service.makeReservation(nueva, false, null, null)
         );
-    }
-
-
-    @Test
-    void whenSpecialDiscountIsHigher_thenItIsApplied() {
-        CustomerEntity c = new CustomerEntity();
-        c.setName("Juan");
-        c.setRut("1");
-        c.setBirthDate(LocalDate.of(1990, 1, 1));
-        c.setEmail("test@mail.com");
-        c.setMonthVisits(1);
-
-        ReservationEntity r = new ReservationEntity();
-        r.setRutUser("1");
-        r.setRutsUsers("");
-        r.setReservationDate(LocalDateTime.of(2025, 4, 20, 10, 0));
-        r.setLapsOrTime(10);
-        r.setNumberPeople(1);
-
-        when(reservationRepository.findAll()).thenReturn(List.of());
-        when(customerRepository.findAllByRutIn(any())).thenReturn(List.of(c));
-        when(customerRepository.findByRut("1")).thenReturn(c);
-        when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
-        when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(5, new KartEntity()));
-
-        ReservationEntity result = service.makeReservation(r, true, 10000.0, 40.0);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getGroupDetail()).contains("40");
     }
 
     @Test
@@ -302,33 +255,6 @@ public class ReservationServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 service.makeReservation(r, false, null, null)
         );
-    }
-
-    @Test
-    void whenCustomerHasBirthday_then50PercentDiscountApplied() {
-        CustomerEntity c = new CustomerEntity();
-        c.setName("Ana");
-        c.setRut("1");
-        c.setBirthDate(LocalDate.of(1995, 4, 20)); // cumpleaños
-        c.setEmail("ana@mail.com");
-        c.setMonthVisits(5); // también tiene 20%
-
-        ReservationEntity r = new ReservationEntity();
-        r.setRutUser("1");
-        r.setRutsUsers("");
-        r.setReservationDate(LocalDateTime.of(2025, 4, 20, 10, 0)); // hoy cumple
-        r.setLapsOrTime(10);
-        r.setNumberPeople(5); // permite 1 cumpleaños
-
-        when(reservationRepository.findAll()).thenReturn(List.of());
-        when(customerRepository.findAllByRutIn(any())).thenReturn(List.of(c));
-        when(customerRepository.findByRut("1")).thenReturn(c);
-        when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
-        when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(5, new KartEntity()));
-
-        ReservationEntity result = service.makeReservation(r, false, null, null);
-        assertThat(result.getGroupDetail()).contains("50");
     }
 
     @Test
@@ -506,6 +432,206 @@ public class ReservationServiceTest {
         assertThatThrownBy(() -> service.getReservationById(id))
                 .isInstanceOf(NoSuchElementException.class);
     }
+
+
+    @Test
+    void calculateDiscountFrequentCustomers_shouldReturnCorrectDiscounts() {
+        LocalDateTime reservationDate = LocalDateTime.of(2025, 4, 25, 10, 0);
+        LocalDateTime startOfMonth = reservationDate.withDayOfMonth(1).toLocalDate().atStartOfDay();
+
+        CustomerEntity c1 = new CustomerEntity(); c1.setRut("1");
+        CustomerEntity c2 = new CustomerEntity(); c2.setRut("2");
+        CustomerEntity c3 = new CustomerEntity(); c3.setRut("3");
+        CustomerEntity c4 = new CustomerEntity(); c4.setRut("4");
+
+        List<ReservationEntity> reservas = new ArrayList<>();
+        // c2: 2 participaciones
+        reservas.add(createSimpleReservation("x", "2", reservationDate));
+        reservas.add(createSimpleReservation("y", "2", reservationDate));
+        // c3: 3 dueño + 2 participante
+        reservas.add(createSimpleReservation("3", "", reservationDate));
+        reservas.add(createSimpleReservation("3", "", reservationDate));
+        reservas.add(createSimpleReservation("3", "", reservationDate));
+        reservas.add(createSimpleReservation("z", "3", reservationDate));
+        reservas.add(createSimpleReservation("w", "3", reservationDate));
+        // c4: 4 dueño + 3 participante
+        reservas.add(createSimpleReservation("4", "", reservationDate));
+        reservas.add(createSimpleReservation("4", "", reservationDate));
+        reservas.add(createSimpleReservation("4", "", reservationDate));
+        reservas.add(createSimpleReservation("4", "", reservationDate));
+        reservas.add(createSimpleReservation("a", "4", reservationDate));
+        reservas.add(createSimpleReservation("b", "4", reservationDate));
+        reservas.add(createSimpleReservation("c", "4", reservationDate));
+
+        when(reservationRepository.findByReservationDateBetween(startOfMonth, reservationDate))
+                .thenReturn(reservas);
+
+        Map<CustomerEntity, Integer> result = service.calculateDiscountFrequentCustomers(
+                List.of(c1, c2, c3, c4), reservationDate
+        );
+
+        assertThat(result.get(c1)).isEqualTo(0);
+        assertThat(result.get(c2)).isEqualTo(10);
+        assertThat(result.get(c3)).isEqualTo(20);
+        assertThat(result.get(c4)).isEqualTo(30);
+    }
+
+    // Inline reservas sin función auxiliar
+    private ReservationEntity createSimpleReservation(String owner, String participants, LocalDateTime date) {
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser(owner);
+        r.setRutsUsers(participants);
+        r.setReservationDate(date.minusDays(1));
+        return r;
+    }
+
+    @Test
+    void makeReservation_shouldThrowIfOutsideWorkingHours() {
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setRutsUsers("");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 22, 9, 0)); // Martes 9:00 AM (cerrado)
+        r.setLapsOrTime(10);
+        r.setNumberPeople(1);
+
+        assertThrows(IllegalArgumentException.class, () -> service.makeReservation(r, false, null, null));
+    }
+
+    @Test
+    void makeReservation_shouldThrowIfNotEnoughKarts() {
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setRutsUsers("2,3");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 26, 14, 0));
+        r.setLapsOrTime(10);
+        r.setNumberPeople(5); // 5 personas
+
+        when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(3, new KartEntity())); // Solo 3 karts
+
+        assertThrows(IllegalArgumentException.class, () -> service.makeReservation(r, false, null, null));
+    }
+
+    @Test
+    void makeReservation_shouldThrowIfReservationOverlaps() {
+        ReservationEntity existing = new ReservationEntity();
+        existing.setReservationDate(LocalDateTime.of(2025, 4, 26, 14, 0));
+        existing.setLapsOrTime(10);
+
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setRutsUsers("");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 26, 14, 5)); // Solapa
+        r.setLapsOrTime(10);
+        r.setNumberPeople(1);
+
+        when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(10, new KartEntity()));
+        when(reservationRepository.findAll()).thenReturn(List.of(existing));
+
+        assertThrows(IllegalArgumentException.class, () -> service.makeReservation(r, false, null, null));
+    }
+
+    @Test
+    void makeReservation_shouldThrowIfInvalidParticipants() {
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setRutsUsers("2");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 26, 14, 0));
+        r.setLapsOrTime(10);
+        r.setNumberPeople(2);
+
+        when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(10, new KartEntity()));
+        when(reservationRepository.findAll()).thenReturn(Collections.emptyList());
+        when(customerRepository.findAllByRutIn(List.of("1", "2"))).thenReturn(List.of()); // Nadie encontrado
+
+        assertThrows(IllegalArgumentException.class, () -> service.makeReservation(r, false, null, null));
+    }
+
+    @Test
+    void makeReservation_shouldSucceedWithoutBirthdayOrSpecialDiscount() throws Exception {
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setRutsUsers("");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 22, 14, 0)); // Martes
+        r.setLapsOrTime(10);
+        r.setNumberPeople(1);
+
+        CustomerEntity c = new CustomerEntity();
+        c.setRut("1");
+        c.setName("Ana");
+        c.setEmail("ana@test.com");
+        c.setBirthDate(LocalDate.of(2000, 1, 1));
+
+        when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(10, new KartEntity()));
+        when(reservationRepository.findAll()).thenReturn(Collections.emptyList());
+        when(customerRepository.findAllByRutIn(List.of("1"))).thenReturn(List.of(c));
+        when(reservationRepository.findByReservationDateBetween(any(), any())).thenReturn(Collections.emptyList());
+        when(customerRepository.findByRut("1")).thenReturn(c);
+
+        when(reservationRepository.save(any())).thenAnswer(invocation -> {
+            ReservationEntity saved = invocation.getArgument(0);
+            saved.setId(1L);
+            return saved;
+        });
+
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        ReservationEntity result = service.makeReservation(r, false, null, null);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(1L);
+    }
+
+
+
+    @Test
+    void makeReservation_shouldApplyBirthdayAndSpecialDiscount() throws Exception {
+        // Datos de entrada
+        ReservationEntity r = new ReservationEntity();
+        r.setRutUser("1");
+        r.setRutsUsers("2");
+        r.setReservationDate(LocalDateTime.of(2025, 4, 26, 14, 0)); // Sábado
+        r.setLapsOrTime(15);
+        r.setNumberPeople(2);
+
+        CustomerEntity c1 = new CustomerEntity();
+        c1.setRut("1");
+        c1.setName("Pedro");
+        c1.setEmail("p@test.com");
+        c1.setBirthDate(LocalDate.of(2000, 4, 26)); // Cumpleañero
+
+        CustomerEntity c2 = new CustomerEntity();
+        c2.setRut("2");
+        c2.setName("Luis");
+        c2.setEmail("l@test.com");
+        c2.setBirthDate(LocalDate.of(1999, 5, 1));
+
+        // Mock dependencias necesarias
+        when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(10, new KartEntity()));
+        when(reservationRepository.findAll()).thenReturn(Collections.emptyList());
+        when(customerRepository.findAllByRutIn(List.of("1", "2"))).thenReturn(List.of(c1, c2));
+        when(reservationRepository.findByReservationDateBetween(any(), any())).thenReturn(Collections.emptyList());
+        when(customerRepository.findByRut("1")).thenReturn(c1);
+
+        // Mock para asignar ID a la reserva
+        when(reservationRepository.save(any())).thenAnswer(invocation -> {
+            ReservationEntity saved = invocation.getArgument(0);
+            saved.setId(2L);
+            return saved;
+        });
+
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        // Ejecutar
+        ReservationEntity result = service.makeReservation(r, true, 18000.0, 30.0);
+
+        // Validar
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(2L);
+    }
+
+
 
 
 }

@@ -32,7 +32,6 @@ class CustomerRepositoryTest {
         customer.setPassword("1234");
         customer.setPhone("999999999");
         customer.setBirthDate(LocalDate.of(1990, 1, 1));
-        customer.setMonthVisits(2);
         customer.setAdmin(false);
         entityManager.persistAndFlush(customer);
 
@@ -54,7 +53,6 @@ class CustomerRepositoryTest {
         customer.setPassword("abcd");
         customer.setPhone("888888888");
         customer.setBirthDate(LocalDate.of(1995, 5, 15));
-        customer.setMonthVisits(1);
         customer.setAdmin(false);
         entityManager.persistAndFlush(customer);
 
@@ -76,7 +74,6 @@ class CustomerRepositoryTest {
         c1.setPassword("pass");
         c1.setPhone("777777777");
         c1.setBirthDate(LocalDate.of(1992, 3, 3));
-        c1.setMonthVisits(3);
         c1.setAdmin(false);
 
         CustomerEntity c2 = new CustomerEntity();
@@ -86,7 +83,6 @@ class CustomerRepositoryTest {
         c2.setPassword("pass");
         c2.setPhone("666666666");
         c2.setBirthDate(LocalDate.of(1988, 8, 8));
-        c2.setMonthVisits(4);
         c2.setAdmin(false);
 
         entityManager.persist(c1);

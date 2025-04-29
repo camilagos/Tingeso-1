@@ -7,6 +7,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -28,7 +30,7 @@ public class CustomerServiceTest {
     @Test
     void saveUser_returnsSavedUser_whenRutIsUnique() {
         CustomerEntity customer = new CustomerEntity("Test", "test@mail.com", "123", "pass", "12345678",
-                LocalDate.of(2000, 1, 1), 0, false);
+                LocalDate.of(2000, 1, 1), false);
 
         when(customerRepository.findByRut("123")).thenReturn(null);
         when(customerRepository.save(any(CustomerEntity.class))).thenReturn(customer);
@@ -43,7 +45,7 @@ public class CustomerServiceTest {
         when(customerRepository.findByRut("123")).thenReturn(existing);
 
         CustomerEntity result = customerService.saveUser(new CustomerEntity("Test", "test@mail.com", "123", "pass", "12345678",
-                LocalDate.of(2000, 1, 1), 0, false));
+                LocalDate.of(2000, 1, 1), false));
 
         assertThat(result).isNull();
     }
@@ -124,16 +126,20 @@ public class CustomerServiceTest {
     }
 
     @Test
-    void login_throwsException_whenUserNotFound() {
-        CustomerEntity input = new CustomerEntity();
-        input.setEmail("ghost@mail.com");
-        input.setPassword("whatever");
+    void login_shouldThrowUnauthorizedWithMessage_whenCredentialsAreInvalid() {
+        CustomerEntity loginAttempt = new CustomerEntity();
+        loginAttempt.setEmail("no@existe.com");
+        loginAttempt.setPassword("123");
 
-        when(customerRepository.findByEmailAndPassword("ghost@mail.com", "whatever"))
+        when(customerRepository.findByEmailAndPassword("no@existe.com", "123"))
                 .thenReturn(null);
 
-        assertThatThrownBy(() -> customerService.login(input))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Email o contraseña incorrectos");
+        ResponseStatusException thrown = assertThrows(ResponseStatusException.class, () -> {
+            customerService.login(loginAttempt);
+        });
+
+        assertThat(thrown.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(thrown.getReason()).isEqualTo("Email o contraseña incorrectos");
     }
+
 }

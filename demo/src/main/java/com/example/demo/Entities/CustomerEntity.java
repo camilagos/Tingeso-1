@@ -24,20 +24,18 @@ public class CustomerEntity {
     private String password;
     private String phone;
     private LocalDate birthDate;
-    private int monthVisits;
     private boolean admin;
 
     public CustomerEntity() {
     }
 
-    public CustomerEntity(String name, String email, String rut, String password, String phone, LocalDate birthDate, int monthVisits, boolean admin) {
+    public CustomerEntity(String name, String email, String rut, String password, String phone, LocalDate birthDate, boolean admin) {
         this.name = name;
         this.email = email;
         this.rut = rut;
         this.password = password;
         this.phone = phone;
         this.birthDate = birthDate;
-        this.monthVisits = monthVisits;
         this.admin = admin;
     }
 
@@ -95,14 +93,6 @@ public class CustomerEntity {
 
     public void setBirthDate(LocalDate birthDate) {
         this.birthDate = birthDate;
-    }
-
-    public int getMonthVisits() {
-        return monthVisits;
-    }
-
-    public void setMonthVisits(int monthVisits) {
-        this.monthVisits = monthVisits;
     }
 
     public boolean isAdmin() {

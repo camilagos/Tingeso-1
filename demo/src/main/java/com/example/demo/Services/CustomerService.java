@@ -3,9 +3,10 @@ package com.example.demo.Services;
 import com.example.demo.Entities.CustomerEntity;
 import com.example.demo.Repositories.CustomerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
 
 @Service
 public class CustomerService {
@@ -24,7 +25,7 @@ public class CustomerService {
         System.out.println("Valor admin recibido: " + customer.isAdmin());
 
         CustomerEntity user = new CustomerEntity(customer.getName(), customer.getEmail(), customer.getRut(),
-                customer.getPassword(), customer.getPhone(), customer.getBirthDate(), customer.getMonthVisits(),
+                customer.getPassword(), customer.getPhone(), customer.getBirthDate(),
                 customer.isAdmin());
 
         System.out.println("Valor admin guardado: " + user.isAdmin());
@@ -58,7 +59,9 @@ public class CustomerService {
         );
 
         if (customer == null) {
-            throw new RuntimeException("Email o contraseña incorrectos");
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "Email o contraseña incorrectos"
+            );
         }
 
         return customer;

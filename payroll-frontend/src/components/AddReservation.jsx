@@ -91,6 +91,8 @@ const AddReservation = () => {
           value={form.reservationDate}
           onChange={handleChange}
           required
+          helperText="Las reservas deben realizarse dentro del horario de atención: lunes a viernes de 14:00 a 22:00 h, fines de semana y feriados de 10:00 a 22:00 h."
+
         />
         <TextField
           fullWidth
@@ -142,6 +144,7 @@ const AddReservation = () => {
         <Button
           type="submit"
           variant="contained"
+          color="primary"
           startIcon={<SaveIcon />}
           sx={{ mt: 2 }}
         >

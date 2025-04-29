@@ -9,6 +9,7 @@ import ReportByPerson from './components/ReportByPerson';
 import Rack from './components/Rack';
 import Navbar from "./components/Navbar"
 import Home from './components/Home';
+import KartManagement from './components/KartManagement';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 
@@ -26,6 +27,7 @@ function App() {
               <Route path="/reportByLapsOrTime" element={<ReportByLapsOrTime />} />
               <Route path="/reportByPerson" element={<ReportByPerson />} />
               <Route path="/rack" element={<Rack />} />
+              <Route path="/karts" element={<KartManagement />} />
             </Routes>
           </div>
       </Router>
