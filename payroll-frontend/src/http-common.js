@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const payrollBackendServer = "karting-app.eastus2.cloudapp.azure.com";
+const payrollBackendServer = import.meta.env.VITE_PAYROLL_BACKEND_SERVER;
 const payrollBackendPort = "8090";
 
 console.log(payrollBackendServer)
