@@ -24,11 +24,10 @@ pipeline{
             steps{
                 dir("demo"){
                     script{
-                        withCredentials([usernamePassword(credentialsId: 'docker-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                            bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
+                        withDockerRegistry(credentialsId: 'docker-credentials'){
                             bat "docker build -t camilagos/spring-image:latest ."
                             bat "docker push camilagos/spring-image:latest"
-}
+                        }
                     }                    
                 }
             }
