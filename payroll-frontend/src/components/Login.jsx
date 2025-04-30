@@ -68,7 +68,7 @@ const Login = () => {
         <Button
           type="submit"
           variant="contained"
-          color="error"
+          color="primary"
           fullWidth
           startIcon={<LoginIcon />}
           sx={{ mt: 2 }}
