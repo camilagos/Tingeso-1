@@ -42,7 +42,7 @@ const ReportByPerson = () => {
           onChange={(e) => setEndDate(e.target.value)}
           required
         />
-        <Button type="submit" variant="contained" color="primary">Consultar</Button>
+        <Button type="submit" variant="contained" color="primary">Generar reporte</Button>
       </form>
 
       {data && (
