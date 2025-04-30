@@ -147,7 +147,7 @@ public class ReservationServiceTest {
         nueva.setRutUser("1");
         nueva.setRutsUsers("");
 
-        when(reservationRepository.findAll()).thenReturn(List.of(existing));
+        when(reservationRepository.findByReservationDateBetween(any(), any())).thenReturn(List.of(existing));
 
         assertThrows(IllegalArgumentException.class, () ->
                 service.makeReservation(nueva, false, null, null)
@@ -525,7 +525,7 @@ public class ReservationServiceTest {
         r.setNumberPeople(1);
 
         when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(10, new KartEntity()));
-        when(reservationRepository.findAll()).thenReturn(List.of(existing));
+        when(reservationRepository.findByReservationDateBetween(any(), any())).thenReturn(List.of(existing));
 
         assertThrows(IllegalArgumentException.class, () -> service.makeReservation(r, false, null, null));
     }
@@ -540,7 +540,7 @@ public class ReservationServiceTest {
         r.setNumberPeople(2);
 
         when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(10, new KartEntity()));
-        when(reservationRepository.findAll()).thenReturn(Collections.emptyList());
+        when(reservationRepository.findByReservationDateBetween(any(), any())).thenReturn(Collections.emptyList());
         when(customerRepository.findAllByRutIn(List.of("1", "2"))).thenReturn(List.of()); // Nadie encontrado
 
         assertThrows(IllegalArgumentException.class, () -> service.makeReservation(r, false, null, null));
@@ -562,7 +562,7 @@ public class ReservationServiceTest {
         c.setBirthDate(LocalDate.of(2000, 1, 1));
 
         when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(10, new KartEntity()));
-        when(reservationRepository.findAll()).thenReturn(Collections.emptyList());
+        when(reservationRepository.findByReservationDateBetween(any(), any())).thenReturn(Collections.emptyList());
         when(customerRepository.findAllByRutIn(List.of("1"))).thenReturn(List.of(c));
         when(reservationRepository.findByReservationDateBetween(any(), any())).thenReturn(Collections.emptyList());
         when(customerRepository.findByRut("1")).thenReturn(c);
@@ -608,7 +608,7 @@ public class ReservationServiceTest {
 
         // Mock dependencias necesarias
         when(kartService.getKartsByAvailability(true)).thenReturn(Collections.nCopies(10, new KartEntity()));
-        when(reservationRepository.findAll()).thenReturn(Collections.emptyList());
+        when(reservationRepository.findByReservationDateBetween(any(), any())).thenReturn(Collections.emptyList());
         when(customerRepository.findAllByRutIn(List.of("1", "2"))).thenReturn(List.of(c1, c2));
         when(reservationRepository.findByReservationDateBetween(any(), any())).thenReturn(Collections.emptyList());
         when(customerRepository.findByRut("1")).thenReturn(c1);
@@ -630,8 +630,5 @@ public class ReservationServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getId()).isEqualTo(2L);
     }
-
-
-
 
 }

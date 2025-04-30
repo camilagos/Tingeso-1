@@ -20,15 +20,12 @@ public class CustomerService {
             // return null; // User already exists
         // }
         if (existingUserRut != null) {
-            return null; // User already exists
+            return null;
         }
-        System.out.println("Valor admin recibido: " + customer.isAdmin());
 
         CustomerEntity user = new CustomerEntity(customer.getName(), customer.getEmail(), customer.getRut(),
                 customer.getPassword(), customer.getPhone(), customer.getBirthDate(),
                 customer.isAdmin());
-
-        System.out.println("Valor admin guardado: " + user.isAdmin());
 
         return customerRepository.save(user);
     }

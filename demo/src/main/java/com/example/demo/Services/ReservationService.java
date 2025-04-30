@@ -39,7 +39,6 @@ public class ReservationService {
     @Autowired
     KartService kartService;
 
-
     @Autowired
     JavaMailSender mailSender;
 
@@ -61,7 +60,7 @@ public class ReservationService {
     public boolean isHoliday(LocalDate date) {
         DayOfWeek day = date.getDayOfWeek();
 
-        // Feriados fijos (día y mes sin considerar el año)
+        // Feriados fijos
         List<MonthDay> feriadosFijos = List.of(
                 MonthDay.of(1, 1),   // Año Nuevo
                 MonthDay.of(5, 1),   // Día del Trabajador
@@ -96,8 +95,11 @@ public class ReservationService {
         Map<CustomerEntity, Integer> discounts = new HashMap<>();
 
         LocalDateTime startOfMonth = reservationDate.withDayOfMonth(1).toLocalDate().atStartOfDay();
+
+        // Reservaciones del mes
         List<ReservationEntity> reservationsThisMonth = reservationRepository.findByReservationDateBetween(startOfMonth, reservationDate);
 
+        // Contar las reservas de un mes en las que esta cada usuario
         for (CustomerEntity customer : customers) {
             String rut = customer.getRut();
             int visitCount = 0;
@@ -158,8 +160,10 @@ public class ReservationService {
         Document document = new Document();
         PdfWriter.getInstance(document, out);
 
+        // Abrir el documento
         document.open();
 
+        // Agregar contenido al documento
         com.lowagie.text.Font font = new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 14, com.lowagie.text.Font.BOLD);
         document.add(new Paragraph("Comprobante de Reserva - KartingRM", font));
         document.add(new Paragraph(" "));
@@ -183,6 +187,7 @@ public class ReservationService {
                     table.addCell(cell);
                 });
 
+        // Agregar los datos de los participantes
         for (List<Object> fila : detail) {
             for (Object col : fila) {
                 table.addCell(String.valueOf(col));
@@ -231,13 +236,18 @@ public class ReservationService {
         }
 
         // Verificar si hay suficientes karts
-        List<KartEntity> kartsDisponibles = kartService.getKartsByAvailability(true); // usa tu método
+        List<KartEntity> kartsDisponibles = kartService.getKartsByAvailability(true);
         if (reservation.getNumberPeople() > kartsDisponibles.size()) {
             throw new IllegalArgumentException("No hay suficientes karts disponibles para esta reserva.");
         }
 
+        // Verificar si ya existe una reserva en el mismo horario
+        LocalDate date = newStart.toLocalDate();
+        List<ReservationEntity> reservations = reservationRepository.findByReservationDateBetween(
+                date.atStartOfDay(),
+                date.atTime(23, 59, 59)
+        );
 
-        List<ReservationEntity> reservations = reservationRepository.findAll();
         for (ReservationEntity r : reservations) {
             LocalDateTime start = r.getReservationDate();
             LocalDateTime end = calculateEndTime(start, r.getLapsOrTime());
@@ -246,6 +256,7 @@ public class ReservationService {
             }
         }
 
+        // Verificar que los RUTs de los participantes estén registrados
         List<String> allRuts = new ArrayList<>();
         allRuts.add(reservation.getRutUser());
         List<String> extraRuts = Arrays.stream(reservation.getRutsUsers().split(","))
@@ -259,12 +270,15 @@ public class ReservationService {
             throw new IllegalArgumentException("Uno o más RUTs no están registrados");
         }
 
+        // Determinar el precio base
         double basePrice = (isAdminUser && customPrice != null && customPrice > 0) ? customPrice : calculateBasePrice(reservation.getLapsOrTime());
+
         boolean isWeekend = isHoliday(LocalDate.from(reservation.getReservationDate()));
         int groupDiscount = calculateDiscountNumberPeople(reservation.getNumberPeople());
         Map<CustomerEntity, Integer> visitDiscounts = calculateDiscountFrequentCustomers(participants, reservation.getReservationDate());
         Set<CustomerEntity> birthdayClients = getBirthdayCustomers(participants, LocalDate.from(reservation.getReservationDate()));
 
+        // Calcular el número de descuentos por cumpleaños permitidos
         int numberPeople = reservation.getNumberPeople();
         int birthdayDiscountsAllowed = 0;
         if (numberPeople >= 3 && numberPeople <= 5) {
@@ -278,8 +292,10 @@ public class ReservationService {
         double totalPaymentWithTax = 0;
         int birthdayApplied = 0;
 
+        // Aplicar el recargo del fin de semana
         if (isWeekend) basePrice *= 1.15;
 
+        // Determinar que descuentos aplicar
         for (CustomerEntity c : participants) {
             double price = basePrice;
 
@@ -304,7 +320,7 @@ public class ReservationService {
                 }
             }
 
-            // Aplicar el descuento final (solo una vez)
+            // Aplicar el descuento final
             price *= (1 - discountApplied / 100.0);
 
 
@@ -312,6 +328,7 @@ public class ReservationService {
             double totalWithTax = price + iva;
             totalPaymentWithTax += totalWithTax;
 
+            // Hacer una lista con los datos de cada participante
             detailParticipants.add(List.of(
                     c.getName(),
                     (int) Math.round(basePrice * 100) / 100,
@@ -335,6 +352,7 @@ public class ReservationService {
                 null
         );
 
+        // Hacer un json con los detalles de la reserva de cada participante
         ObjectMapper mapper = new ObjectMapper();
         String detailJson = null;
         try {
@@ -346,8 +364,10 @@ public class ReservationService {
 
         reservationNew = reservationRepository.save(reservationNew);
 
+        // Generar el PDF
         byte[] pdf = generatePDF(reservationNew, detailParticipants);
 
+        // Enviar el voucher por correo electrónico a los participantes
         List<String> emails = participants.stream()
                 .map(CustomerEntity::getEmail)
                 .filter(email -> email != null && !email.isBlank())
